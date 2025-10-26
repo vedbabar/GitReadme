@@ -1,16 +1,15 @@
 import os
 import shutil
 import uuid
-import tempfile # <-- IMPORT THIS
+import tempfile 
 from pathlib import Path
 from git import Repo
 from typing import List, Tuple
 
-from langchain_google_genai import ChatGoogleGenerativeAI # <-- CHANGED
+from langchain_google_genai import ChatGoogleGenerativeAI 
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-# Use the Google Generative AI library
-# <-- REMOVED DUPLICATE IMPORT
+
 
 from .config import CODE_EXTS, DEFAULT_EXCLUDE_DIRS, MAX_FILES_TO_SUMMARIZE, MAX_CHARS_PER_FILE_SNIPPET
 
@@ -95,11 +94,8 @@ def get_llm_model() -> ChatGoogleGenerativeAI:
         temperature=0.3,
     )
 
-# <-- REMOVED 5 EXTRA LINES HERE that were causing the error
-
 def summarize_files(LLM: ChatGoogleGenerativeAI, blocks: List[Tuple[str, str]]) -> str: # <-- CHANGED (type hint)
     """Map step: summarize each file."""
-    # This is your exact prompt from llm_util.py
     prompt = PromptTemplate.from_template(
         "You are a precise code summarizer. Summarize the file below for a README.\n"
         "Focus on: purpose, key responsibilities, important functions/classes/exports, routes/CLI, "
@@ -125,7 +121,6 @@ def summarize_files(LLM: ChatGoogleGenerativeAI, blocks: List[Tuple[str, str]]) 
 
 def compose_readme(LLM: ChatGoogleGenerativeAI, multi_file_summary: str) -> str: # <-- CHANGED (type hint)
     """Reduce step: produce a complete README from file summaries."""
-    # This is your exact prompt from llm_util.py
     final_prompt = PromptTemplate.from_template(
         "You will write a high-quality README.md for a repository using the condensed file summaries below.\n"
         "Write concise, actionable documentation without large code blocks. Use fenced blocks only for commands.\n\n"
