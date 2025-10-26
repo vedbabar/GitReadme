@@ -2,35 +2,22 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
 
-# Import our main logic function from logic.py
-# (This is the file that uses Gemini)
 from .logic import clone_and_process_repo
 
-# Vercel will look for this 'app' variable
 app = Flask(__name__)
 
 # Set up CORS to allow requests from your frontend
-# This allows your frontend (e.g., localhost:3000) to call your backend
 CORS(app)
 
-# -----------------------------------------------------------------
-#  1. HEALTH CHECK ROUTE (for testing)
-# -----------------------------------------------------------------
 @app.route('/', methods=['GET'])
 def home():
     print("Health check route hit")
     return jsonify({"status": "ok", "message": "Backend server is running!"})
 
-# -----------------------------------------------------------------
-#  2. MAIN API ROUTE (This does the work)
-# -----------------------------------------------------------------
 @app.route('/api/generate', methods=['POST'])
 def handle_generate():
     print("Generate route hit")
-    
-    # --- Security Check ---
-    # Check if the Google API Key is set in the environment
-    # On Vercel, this is set in the project settings
+
     if not os.getenv("GOOGLE_API_KEY"):
         print("Error: GOOGLE_API_KEY is not set")
         return jsonify({"error": "GOOGLE_API_KEY environment variable not set."}), 500
@@ -63,11 +50,6 @@ def handle_generate():
         print(f"An unexpected error occurred: {e}")
         return jsonify({"error": f"An internal server error occurred: {e}"}), 500
 
-# -----------------------------------------------------------------
-#  3. LOCAL DEVELOPMENT RUNNER
-# -----------------------------------------------------------------
-# This block only runs when you execute 'python3 api/index.py' directly
-# Vercel will *not* run this part; it just imports the 'app' variable.
 if __name__ == '__main__':
     # Load .env file for local development
     from dotenv import load_dotenv
