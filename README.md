@@ -58,8 +58,8 @@ This project requires both Python (for the backend) and Node.js/npm (for the fro
 
 1.  **Clone the repository:**
     ```bash
-    git clone <repo-url>
-    cd <repo-name>/backend
+    git clone https://github.com/vedbabar/GitReadme
+    cd https://github.com/vedbabar/GitReadme/backend
     ```
 
 2.  **Create and activate a virtual environment:**
