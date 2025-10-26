@@ -74,4 +74,4 @@ if __name__ == '__main__':
     load_dotenv()
     print("Running in debug mode for local development...")
     # We set the port to 5001 so it doesn't conflict with your frontend on 3000
-    app.run(debug=True, port=5001)
+    app.run(port=5001)
