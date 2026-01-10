@@ -1,0 +1,31 @@
+// backend/prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql" // Easy for local dev. We switch to Postgres for Render later.
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-py"
+  interface = "sync"
+}
+
+model User {
+  id             String   @id // Clerk User ID
+  email          String   @unique
+  customApiKey   String?  // If they want to use their own Gemini Key
+  createdAt      DateTime @default(now())
+  readmes        Readme[]
+}
+
+model Readme {
+  id        String   @id @default(uuid())
+  repoUrl   String
+  content   String?
+  status    String   @default("PENDING")
+  // NEW FIELD:
+  userEmail String?  // Stores the email for the unique link
+  userId    String? 
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}

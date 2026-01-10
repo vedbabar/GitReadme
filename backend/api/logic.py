@@ -1,18 +1,17 @@
 import os
 import shutil
 import uuid
-import tempfile # <-- IMPORT THIS
+import tempfile 
 from pathlib import Path
 from git import Repo
 from typing import List, Tuple
 
-from langchain_google_genai import ChatGoogleGenerativeAI # <-- CHANGED
+from langchain_google_genai import ChatGoogleGenerativeAI 
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
-# Use the Google Generative AI library
-# <-- REMOVED DUPLICATE IMPORT
 
-from .config import CODE_EXTS, DEFAULT_EXCLUDE_DIRS, MAX_FILES_TO_SUMMARIZE, MAX_CHARS_PER_FILE_SNIPPET
+
+from config import CODE_EXTS, DEFAULT_EXCLUDE_DIRS, MAX_FILES_TO_SUMMARIZE, MAX_CHARS_PER_FILE_SNIPPET
 
 def clone_and_process_repo(repo_url: str) -> str:
     """
@@ -23,18 +22,18 @@ def clone_and_process_repo(repo_url: str) -> str:
     temp_dir = Path(tempfile.gettempdir()) / str(uuid.uuid4())
     
     try:
-        # 1. CLONE REPO (from your git.py logic)
+        # 1. CLONE REPO
         print(f"Cloning {repo_url} into {temp_dir}")
         Repo.clone_from(repo_url, str(temp_dir))
         
-        # 2. AGGREGATE CODE (from your file_crawler.py logic)
+        # 2. AGGREGATE CODE
         print("Aggregating code files...")
         file_blocks = aggregate_code(temp_dir)
         
         if not file_blocks:
             raise ValueError("No relevant code files found in the repository. Check file extensions and exclude directories.")
 
-        # 3. GENERATE README (from your llm_util.py logic)
+        # 3. GENERATE README
         print(f"Found {len(file_blocks)} files. Generating README...")
         LLM = get_llm_model()
         
@@ -48,14 +47,11 @@ def clone_and_process_repo(repo_url: str) -> str:
     
     except Exception as e:
         print(f"Error during processing: {e}")
-        # Re-raise the exception so the API handler can catch it
         raise e
         
     finally:
-        # Crucial: Clean up the temporary directory *no matter what*
         if temp_dir.exists():
             print(f"Cleaning up directory: {temp_dir}")
-            # Add ignore_errors=True to prevent Windows lock errors
             shutil.rmtree(temp_dir, ignore_errors=True)
 
 def aggregate_code(repo_path: Path) -> List[Tuple[str, str]]:
@@ -74,7 +70,6 @@ def aggregate_code(repo_path: Path) -> List[Tuple[str, str]]:
             if Path(fname).suffix.lower() in CODE_EXTS:
                 file_path = Path(dirpath) / fname
                 try:
-                    # Get the relative path for the prompt
                     relative_path = file_path.relative_to(repo_path).as_posix()
                     # Read file content
                     with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
@@ -95,11 +90,8 @@ def get_llm_model() -> ChatGoogleGenerativeAI:
         temperature=0.3,
     )
 
-# <-- REMOVED 5 EXTRA LINES HERE that were causing the error
-
 def summarize_files(LLM: ChatGoogleGenerativeAI, blocks: List[Tuple[str, str]]) -> str: # <-- CHANGED (type hint)
     """Map step: summarize each file."""
-    # This is your exact prompt from llm_util.py
     prompt = PromptTemplate.from_template(
         "You are a precise code summarizer. Summarize the file below for a README.\n"
         "Focus on: purpose, key responsibilities, important functions/classes/exports, routes/CLI, "
@@ -125,7 +117,6 @@ def summarize_files(LLM: ChatGoogleGenerativeAI, blocks: List[Tuple[str, str]]) 
 
 def compose_readme(LLM: ChatGoogleGenerativeAI, multi_file_summary: str) -> str: # <-- CHANGED (type hint)
     """Reduce step: produce a complete README from file summaries."""
-    # This is your exact prompt from llm_util.py
     final_prompt = PromptTemplate.from_template(
         "You will write a high-quality README.md for a repository using the condensed file summaries below.\n"
         "Write concise, actionable documentation without large code blocks. Use fenced blocks only for commands.\n\n"

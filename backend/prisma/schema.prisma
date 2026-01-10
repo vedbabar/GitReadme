@@ -1,0 +1,27 @@
+datasource db {
+  provider = "postgresql" 
+  url      = env("DATABASE_URL") 
+}
+
+generator client {
+  provider = "prisma-client-py"
+  interface = "sync"
+}
+
+model User {
+  id             String   @id
+  email          String   @unique
+  customApiKey   String?
+  createdAt      DateTime @default(now())
+  readmes        Readme[]
+}
+
+model Readme {
+  id        String   @id @default(uuid())
+  repoUrl   String   @unique
+  content   String?
+  status    String   @default("PENDING")
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}

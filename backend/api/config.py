@@ -1,8 +1,6 @@
-# Safety limits to keep prompts small (character-based, coarse control)
-MAX_FILES_TO_SUMMARIZE = 120        # cap number of files summarized
+MAX_FILES_TO_SUMMARIZE = 50        # cap number of files summarized
 MAX_CHARS_PER_FILE_SNIPPET = 6000     # truncate each file's content
 
-# Configure which file extensions count as "programming language files"
 CODE_EXTS = {
     ".py", ".ipynb", ".js", ".jsx", ".ts", ".tsx",
     ".java", ".kt", ".kts", ".scala",
@@ -14,7 +12,7 @@ CODE_EXTS = {
     ".html", ".sass", ".xml", ".yml", ".yaml", ".ini", ".gradle"
 }
 
-# Common directories to skip (tweak as needed)
+# Common directories to skip 
 DEFAULT_EXCLUDE_DIRS = {
     ".git", ".hg", ".svn", "__pycache__", ".idea", ".vscode",
     "node_modules", "venv", ".venv", "env", ".mypy_cache",
