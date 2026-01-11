@@ -2,7 +2,9 @@ import smtplib
 import os
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from prisma import Prisma
+from sqlmodel import Session  
+from db import engine         
+from models import Readme   
 import logic 
 
 # Email Configuration
@@ -51,36 +53,39 @@ def background_generate(job_id, repo_url, user_api_key, user_email):
     """
     The Task Function ran by the Worker.
     """
-    db = Prisma()
-    db.connect()
+    # Replaced: db = Prisma(); db.connect()
+    # New: Use Context Manager for Session
+    with Session(engine) as session:
+        try:
+            print(f" [Job {job_id}] Processing {repo_url}...")
+            
+            # Fetch the job object first
+            job = session.get(Readme, job_id)
+            if not job:
+                print(f" [Job {job_id}] Error: Job not found in DB")
+                return
 
-    try:
-        print(f" [Job {job_id}] Processing {repo_url}...")
-        
-        markdown = logic.clone_and_process_repo(repo_url)
-        
-        db.readme.update(
-            where={"id": job_id},
-            data={
-                "status": "COMPLETED",
-                "content": markdown
-            }
-        )
-        print(f" [Job {job_id}] DB Updated.")
+            # Run logic
+            markdown = logic.clone_and_process_repo(repo_url)
+            
+            # Update Success
+            job.status = "COMPLETED"
+            job.content = markdown
+            session.add(job)
+            session.commit()
+            
+            print(f" [Job {job_id}] DB Updated.")
 
-        if user_email:
-            send_email_notification(user_email, job_id)
+            if user_email:
+                send_email_notification(user_email, job_id)
         
-    except Exception as e:
-        print(f" [Job {job_id}] Failed: {e}")
-        db.readme.update(
-            where={"id": job_id},
-            data={
-                "status": "FAILED",
-                "content": str(e)
-            }
-        )
-    finally:
-        # Always disconnect in the worker
-        if db.is_connected():
-            db.disconnect()
+        except Exception as e:
+            print(f" [Job {job_id}] Failed: {e}")
+            
+            # Update Failure
+            # We re-fetch or use the existing 'job' object if valid
+            if 'job' in locals() and job:
+                job.status = "FAILED"
+                job.content = str(e)
+                session.add(job)
+                session.commit()

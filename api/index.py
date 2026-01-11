@@ -1,18 +1,18 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from prisma import Prisma
+from sqlmodel import Session, select, desc  
+from db import engine, init_db             
+from models import Readme                  
 import logic 
 
 from rq import Queue
 from redis_conn import conn
-from tasks import background_generate,send_email_notification 
+from tasks import background_generate, send_email_notification 
 from datetime import timedelta
+import os
 
 app = Flask(__name__)
 CORS(app)
-
-db = Prisma()
-db.connect()
 
 q = Queue(connection=conn)
 
@@ -33,12 +33,9 @@ def start_generation_job():
     if not repo_url:
         return jsonify({"error": "repoUrl is required"}), 400
     
-
     try:
         client_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
- 
         rate_key = f"rate_limit:{client_ip}"
-   
         current_usage = conn.get(rate_key)
         
         if current_usage and int(current_usage) >= 2:
@@ -49,7 +46,6 @@ def start_generation_job():
             }), 429
 
         new_count = conn.incr(rate_key)
-
         if new_count == 1:
             conn.expire(rate_key, timedelta(hours=24))
             
@@ -60,44 +56,41 @@ def start_generation_job():
         pass
 
     try:
-        # 1. CACHE CHECK
-        existing = db.readme.find_first(
-            where={"repoUrl": repo_url}
-        )
-        if existing and existing.status == "COMPLETED":
-             if user_email:
-                print(f"⚡ Cache Hit! Queueing email for {user_email}")
-                # We use the same Redis queue to send the email in the background
-                q.enqueue(send_email_notification, user_email, existing.id)
-             return jsonify({
-                "jobId": existing.id, 
-                "message": "Returned from cache"
+        with Session(engine) as session:
+            statement = select(Readme).where(Readme.repoUrl == repo_url)
+            existing = session.exec(statement).first()
+
+            if existing and existing.status == "COMPLETED":
+                if user_email:
+                    print(f"⚡ Cache Hit! Queueing email for {user_email}")
+                    q.enqueue(send_email_notification, user_email, existing.id)
+                
+                return jsonify({
+                    "jobId": existing.id, 
+                    "message": "Returned from cache"
+                })
+            new_readme = Readme(
+                repoUrl=repo_url,
+                status="PENDING",
+                userId=user_id,
+                userEmail=user_email
+            )
+            session.add(new_readme)
+            session.commit()
+            session.refresh(new_readme) 
+
+            q.enqueue(
+                background_generate,  
+                new_readme.id,        
+                repo_url,             
+                user_api_key,         
+                user_email            
+            )
+
+            return jsonify({
+                "jobId": new_readme.id, 
+                "message": "Generation started (Queued)"
             })
-
-        # 2. Create PENDING Job in Neon DB
-        new_readme = db.readme.create(
-            data={
-                "repoUrl": repo_url,
-                "status": "PENDING",
-                "userId": user_id,
-                "userEmail": user_email
-            }
-        )
-
-        # 3. Add to Redis Queue
-        q.enqueue(
-            background_generate,  # The function to run
-            new_readme.id,        # Arg 1
-            repo_url,             # Arg 2
-            user_api_key,         # Arg 3
-            user_email            # Arg 4
-        )
-
-        # 4. Return Job ID Immediately
-        return jsonify({
-            "jobId": new_readme.id, 
-            "message": "Generation started (Queued)"
-        })
 
     except Exception as e:
         print(f"Database Error: {e}")
@@ -107,18 +100,18 @@ def start_generation_job():
 @app.route('/api/status/<job_id>', methods=['GET'])
 def check_job_status(job_id):
     try:
-        record = db.readme.find_unique(where={"id": job_id})
-        
-        if not record:
-            return jsonify({"error": "Job not found"}), 404
-            
-        return jsonify({
-            "id": record.id,
-            "status": record.status,
-            "content": record.content, 
-            "repoUrl": record.repoUrl,
-            "createdAt": str(record.createdAt)
-        })
+        with Session(engine) as session:
+            record = session.get(Readme, job_id)
+            if not record:
+                return jsonify({"error": "Job not found"}), 404
+                
+            return jsonify({
+                "id": record.id,
+                "status": record.status,
+                "content": record.content, 
+                "repoUrl": record.repoUrl,
+                "createdAt": str(record.createdAt)
+            })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -130,21 +123,19 @@ def get_user_history():
         return jsonify({"error": "userId required"}), 400
         
     try:
-        history = db.readme.find_many(
-            where={"userId": user_id},
-            order={"createdAt": "desc"},
-            take=15
-        )
-        
-        results = []
-        for h in history:
-            results.append({
-                "id": h.id,
-                "repoUrl": h.repoUrl,
-                "status": h.status,
-                "createdAt": str(h.createdAt)
-            })
-        return jsonify(results)
+        with Session(engine) as session:
+            statement = select(Readme).where(Readme.userId == user_id).order_by(desc(Readme.createdAt)).limit(15)
+            history = session.exec(statement).all()
+            
+            results = []
+            for h in history:
+                results.append({
+                    "id": h.id,
+                    "repoUrl": h.repoUrl,
+                    "status": h.status,
+                    "createdAt": str(h.createdAt)
+                })
+            return jsonify(results)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -152,6 +143,8 @@ def get_user_history():
 if __name__ == '__main__':
     from dotenv import load_dotenv
     load_dotenv()
-    # Get the PORT from Render (default to 5000 if testing locally)
+    init_db()
+    print(" Database initialized (Tables created)")
+
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
