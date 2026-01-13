@@ -4,7 +4,7 @@ import uuid
 from sqlmodel import Field, SQLModel
 
 class User(SQLModel, table=True):
-    id: str = Field(primary_key=True)  # You set ID manually (like Clerk ID)
+    id: str = Field(primary_key=True) 
     email: str = Field(unique=True, index=True)
     customApiKey: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
@@ -14,9 +14,7 @@ class Readme(SQLModel, table=True):
     repoUrl: str = Field(unique=True, index=True)
     content: Optional[str] = None
     status: str = Field(default="PENDING")
-    
     # Foreign Key to User
     userId: Optional[str] = Field(default=None, foreign_key="user.id")
-    userEmail: Optional[str] = None # Keeping this for convenience if you used it before
-    
+    userEmail: Optional[str] = None
     createdAt: datetime = Field(default_factory=datetime.utcnow)
