@@ -1,6 +1,6 @@
 import smtplib
 import os
-from dotenv import load_dotenv  # <--- Added this to load .env
+from dotenv import load_dotenv 
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlmodel import Session  
@@ -8,12 +8,12 @@ from db import engine
 from models import Readme    
 import logic 
 
-# Load the .env file immediately
+
 load_dotenv()
 
 # Email Configuration
 SMTP_SERVER = "smtp.gmail.com"
-SMTP_PORT = 465
+SMTP_PORT = 587  # <--- CHANGED: Port 587 is safer for Cloud/Render
 
 def send_email_notification(to_email, job_id):
     """Sends a unique shareable link to the user via Email."""
@@ -49,7 +49,9 @@ def send_email_notification(to_email, job_id):
     try:
         # Check if password exists
         if sender_password and "your-app-password" not in sender_password:
-            with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
+            # --- UPDATED: Use SMTP + starttls() instead of SMTP_SSL ---
+            with smtplib.SMTP(SMTP_SERVER, SMTP_PORT) as server:
+                server.starttls()  # <--- Secure the connection manually
                 server.login(sender_email, sender_password)
                 server.sendmail(sender_email, to_email, msg.as_string())
             print(f" Email sent successfully!")
