@@ -1,20 +1,28 @@
 import smtplib
 import os
+from dotenv import load_dotenv  # <--- Added this to load .env
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from sqlmodel import Session  
-from db import engine         
-from models import Readme   
+from db import engine          
+from models import Readme    
 import logic 
+
+# Load the .env file immediately
+load_dotenv()
 
 # Email Configuration
 SMTP_SERVER = "smtp.gmail.com"
 SMTP_PORT = 465
-SENDER_EMAIL = os.getenv("SENDER_EMAIL") 
-SENDER_PASSWORD = os.getenv("SENDER_PASSWORD") 
 
 def send_email_notification(to_email, job_id):
     """Sends a unique shareable link to the user via Email."""
+    
+    # --- FIX: Load variables INSIDE the function ---
+    sender_email = os.getenv("SENDER_EMAIL") 
+    sender_password = os.getenv("SENDER_PASSWORD")
+    # -----------------------------------------------
+
     if not to_email:
         return
 
@@ -22,7 +30,7 @@ def send_email_notification(to_email, job_id):
     print(f" Sending email to {to_email}...")
 
     msg = MIMEMultipart()
-    msg['From'] = f"GitReadme <{SENDER_EMAIL}>"
+    msg['From'] = f"GitReadme <{sender_email}>"
     msg['To'] = to_email
     msg['Subject'] = "Your GitHub README is Ready! 🚀"
 
@@ -39,13 +47,14 @@ def send_email_notification(to_email, job_id):
     msg.attach(MIMEText(body, 'html'))
 
     try:
-        if SENDER_PASSWORD and "your-app-password" not in SENDER_PASSWORD:
+        # Check if password exists
+        if sender_password and "your-app-password" not in sender_password:
             with smtplib.SMTP_SSL(SMTP_SERVER, SMTP_PORT) as server:
-                server.login(SENDER_EMAIL, SENDER_PASSWORD)
-                server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+                server.login(sender_email, sender_password)
+                server.sendmail(sender_email, to_email, msg.as_string())
             print(f" Email sent successfully!")
         else:
-            print(f" Email skipped: SENDER_PASSWORD not configured.")
+            print(f" Email skipped: SENDER_PASSWORD not configured or incorrect.")
     except Exception as e:
         print(f" Failed to send email: {e}")
 
@@ -53,8 +62,6 @@ def background_generate(job_id, repo_url, user_api_key, user_email):
     """
     The Task Function ran by the Worker.
     """
-    # Replaced: db = Prisma(); db.connect()
-    # New: Use Context Manager for Session
     with Session(engine) as session:
         try:
             print(f" [Job {job_id}] Processing {repo_url}...")
@@ -83,7 +90,6 @@ def background_generate(job_id, repo_url, user_api_key, user_email):
             print(f" [Job {job_id}] Failed: {e}")
             
             # Update Failure
-            # We re-fetch or use the existing 'job' object if valid
             if 'job' in locals() and job:
                 job.status = "FAILED"
                 job.content = str(e)
