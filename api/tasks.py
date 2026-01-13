@@ -2,15 +2,11 @@ import os
 from sendgrid import SendGridAPIClient
 from sendgrid.helpers.mail import Mail
 from sqlmodel import Session
-
 from db import engine
 from models import Readme
 import logic
 
 
-# -------------------------------------------------
-# Email Task (SendGrid – 100% reliable)
-# -------------------------------------------------
 def send_email_notification(to_email, job_id):
     if not to_email:
         return
@@ -46,7 +42,6 @@ def send_email_notification(to_email, job_id):
         """
     )
 
-    # Optional but recommended
     message.reply_to = sender_email
 
     try:
@@ -58,9 +53,6 @@ def send_email_notification(to_email, job_id):
         print(f"[EMAIL] FAILED: {e}")
 
 
-# -------------------------------------------------
-# Background Job
-# -------------------------------------------------
 def background_generate(job_id, repo_url, user_api_key, user_email):
     """
     RQ Worker task:
@@ -77,10 +69,8 @@ def background_generate(job_id, repo_url, user_api_key, user_email):
                 print(f"[JOB {job_id}] Job not found")
                 return
 
-            # Run core logic
             markdown = logic.clone_and_process_repo(repo_url)
 
-            # Update DB
             job.status = "COMPLETED"
             job.content = markdown
             session.add(job)
