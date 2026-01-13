@@ -410,7 +410,7 @@ export default function HomePage() {
             <p className={`text-sm leading-relaxed ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
               This can take 2-5 minutes for large repositories.
               <br />
-              <span className="font-semibold text-emerald-500">You can refresh this page, I will remember your progress!</span>
+              <span className="font-semibold text-emerald-500">We will mail you the file once done!! Check spam folder. </span>
               <br />
               <br />
               <span className="font-semibold">While you wait, sharpen your DSA skills!</span>
@@ -460,10 +460,19 @@ export default function HomePage() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <button
-                   onClick={handleReset}
-                   className="text-sm underline text-gray-500 hover:text-gray-700 mr-2"
+                  onClick={handleReset}
+                  className="
+                    inline-flex items-center
+                    text-sm font-medium
+                    text-gray-600
+                    hover:text-gray-900
+                    cursor-pointer
+                    transition-colors duration-200
+                    underline underline-offset-4
+                    mr-2
+                  "
                 >
-                  Generate Another
+                  Generate another
                 </button>
                 <button
                   onClick={() => setShowPreview(!showPreview)}
