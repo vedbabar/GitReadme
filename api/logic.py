@@ -24,7 +24,8 @@ def clone_and_process_repo(repo_url: str) -> str:
     try:
         # 1. CLONE REPO
         print(f"Cloning {repo_url} into {temp_dir}")
-        Repo.clone_from(repo_url, str(temp_dir))
+        # Repo.clone_from(repo_url, str(temp_dir))
+        Repo.clone_from(repo_url, str(temp_dir), depth=1)
         
         # 2. AGGREGATE CODE
         print("Aggregating code files...")
