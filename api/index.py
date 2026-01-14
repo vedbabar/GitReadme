@@ -34,28 +34,6 @@ def start_generation_job():
         return jsonify({"error": "repoUrl is required"}), 400
     
     try:
-        client_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
-        rate_key = f"rate_limit:{client_ip}"
-        current_usage = conn.get(rate_key)
-        
-        if current_usage and int(current_usage) >= 2:
-            print(f" Rate Limit Hit for {client_ip}")
-            return jsonify({
-                "error": "Daily limit reached",
-                "message": "You have generated 2 READMEs today. Please try again tomorrow."
-            }), 429
-
-        new_count = conn.incr(rate_key)
-        if new_count == 1:
-            conn.expire(rate_key, timedelta(hours=24))
-            
-        print(f" User {client_ip} usage: {new_count}/2")
-
-    except Exception as e:
-        print(f" Rate limit check failed (Redis error?): {e}")
-        pass
-
-    try:
         with Session(engine) as session:
             statement = select(Readme).where(Readme.repoUrl == repo_url)
             existing = session.exec(statement).first()
@@ -69,6 +47,30 @@ def start_generation_job():
                     "jobId": existing.id, 
                     "message": "Returned from cache"
                 })
+
+            try:
+                client_ip = request.headers.get('X-Forwarded-For', request.remote_addr).split(',')[0].strip()
+                rate_key = f"rate_limit:{client_ip}"
+                current_usage = conn.get(rate_key)
+                
+                if current_usage and int(current_usage) >= 2:
+                    print(f" Rate Limit Hit for {client_ip}")
+                    return jsonify({
+                        "error": "Daily limit reached",
+                        "message": "You have generated 2 READMEs today. Please try again tomorrow."
+                    }), 429
+
+                new_count = conn.incr(rate_key)
+                if new_count == 1:
+                    conn.expire(rate_key, timedelta(hours=24))
+                    
+                print(f" User {client_ip} usage: {new_count}/2")
+
+            except Exception as e:
+                print(f" Rate limit check failed (Redis error?): {e}")
+                pass
+
+            # 3. CREATE NEW JOB
             new_readme = Readme(
                 repoUrl=repo_url,
                 status="PENDING",
